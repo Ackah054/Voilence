@@ -9,6 +9,9 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = "static/uploads"
 
+# Ensure the upload folder exists (important for Render)
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
 # Load trained model
 model = load_model("violence_detection_cnn.h5")
 IMG_SIZE = (128, 128)
@@ -56,5 +59,4 @@ def camera():
     return render_template('camera.html')
 
 if __name__ == '__main__':
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     app.run(debug=True)
