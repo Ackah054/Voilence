@@ -58,6 +58,7 @@
                     <div class="p-6">
                         <div class="relative bg-black rounded-lg overflow-hidden" style="aspect-ratio: 16/9;">
                             <video id="video" class="w-full h-full object-cover" autoplay muted playsinline></video>
+                            <canvas id="canvas" class="hidden"></canvas>
                             <div id="loading-overlay" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
                                 <div class="text-center text-white">
                                     <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
@@ -74,6 +75,17 @@
                                     <button onclick="initializeCamera()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
                                         Try Again
                                     </button>
+                                </div>
+                            </div>
+                            <div id="violence-alert" class="absolute top-4 left-4 right-4 bg-red-600 text-white p-4 rounded-lg shadow-lg hidden animate-pulse">
+                                <div class="flex items-center">
+                                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                    </svg>
+                                    <div>
+                                        <h4 class="font-bold">VIOLENCE DETECTED!</h4>
+                                        <p class="text-sm">Confidence: <span id="violence-confidence">--</span>%</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -103,17 +115,22 @@
                         <div class="flex items-center justify-between">
                             <span class="text-sm text-gray-600">AI Analysis</span>
                             <div class="flex items-center space-x-2">
-                                <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                                <span class="text-sm font-medium text-green-600">Active</span>
+                                <div id="ai-status-indicator" class="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                <span id="ai-status-text" class="text-sm font-medium text-gray-600">Inactive</span>
                             </div>
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-sm text-gray-600">Threat Level</span>
-                            <span class="text-sm font-medium text-green-600">Low</span>
+                            <span id="threat-level" class="text-sm font-medium text-green-600">Low</span>
                         </div>
                         <div class="flex items-center justify-between">
                             <span class="text-sm text-gray-600">Confidence</span>
-                            <span class="text-sm font-medium text-gray-900">--</span>
+                            <span id="confidence-display" class="text-sm font-medium text-gray-900">--</span>
+                        </div>
+                        <div class="pt-4 border-t">
+                            <button id="toggle-detection" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                                Start Detection
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -121,12 +138,14 @@
                 <!-- Recent Alerts -->
                 <div class="bg-white rounded-lg shadow-sm border p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Recent Alerts</h3>
-                    <div class="text-center py-8">
-                        <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                        </svg>
-                        <p class="text-sm text-gray-500">No alerts detected</p>
-                        <p class="text-xs text-gray-400 mt-1">System is monitoring for suspicious activity</p>
+                    <div id="alerts-container">
+                        <div class="text-center py-8">
+                            <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p class="text-sm text-gray-500">No alerts detected</p>
+                            <p class="text-xs text-gray-400 mt-1">System is monitoring for suspicious activity</p>
+                        </div>
                     </div>
                 </div>
 
@@ -155,8 +174,11 @@
     <script>
         let stream = null;
         let isRecording = false;
+        let isDetecting = false;
+        let detectionInterval = null;
         let startTime = Date.now();
         let frameCount = 0;
+        let alertCount = 0;
 
         function updateStatus(status, className) {
             const indicator = document.getElementById('status-indicator');
@@ -232,6 +254,10 @@
         }
 
         function stopCamera() {
+            if (isDetecting) {
+                stopDetection();
+            }
+            
             if (stream) {
                 stream.getTracks().forEach(track => track.stop());
                 stream = null;
@@ -241,7 +267,166 @@
             }
         }
 
-        // Initialize camera on page load
+        function startDetection() {
+            if (!stream || !stream.active) {
+                alert('Please start the camera first');
+                return;
+            }
+            
+            isDetecting = true;
+            document.getElementById('toggle-detection').textContent = 'Stop Detection';
+            document.getElementById('toggle-detection').className = 'w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors';
+            
+            updateAIStatus('Active', 'bg-green-400 animate-pulse');
+            
+            // Start detection every 2 seconds
+            detectionInterval = setInterval(captureAndAnalyze, 2000);
+        }
+
+        function stopDetection() {
+            isDetecting = false;
+            document.getElementById('toggle-detection').textContent = 'Start Detection';
+            document.getElementById('toggle-detection').className = 'w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors';
+            
+            updateAIStatus('Inactive', 'bg-gray-400');
+            
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
+            
+            // Hide violence alert
+            document.getElementById('violence-alert').classList.add('hidden');
+        }
+
+        function captureAndAnalyze() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw current frame to canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to base64
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // Send to backend for analysis
+            fetch('/detect_frame', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ image: imageData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Detection error:', data.error);
+                    return;
+                }
+                
+                updateDetectionResults(data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function updateDetectionResults(data) {
+            // Update confidence display
+            document.getElementById('confidence-display').textContent = data.confidence + '%';
+            
+            // Update threat level
+            const threatLevel = document.getElementById('threat-level');
+            threatLevel.textContent = data.threat_level;
+            threatLevel.className = data.violence_detected ? 
+                'text-sm font-medium text-red-600' : 
+                'text-sm font-medium text-green-600';
+            
+            // Show/hide violence alert
+            const violenceAlert = document.getElementById('violence-alert');
+            if (data.violence_detected) {
+                document.getElementById('violence-confidence').textContent = data.confidence;
+                violenceAlert.classList.remove('hidden');
+                
+                // Add to alerts list
+                addAlert(data);
+                
+                // Play notification sound (optional)
+                playNotificationSound();
+            } else {
+                violenceAlert.classList.add('hidden');
+            }
+        }
+
+        function addAlert(data) {
+            const alertsContainer = document.getElementById('alerts-container');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            // Clear "no alerts" message if this is the first alert
+            if (alertCount === 0) {
+                alertsContainer.innerHTML = '';
+            }
+            
+            const alertElement = document.createElement('div');
+            alertElement.className = 'bg-red-50 border border-red-200 rounded-lg p-3 mb-3';
+            alertElement.innerHTML = `
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-red-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                    <div class="flex-1">
+                        <h4 class="text-red-800 font-medium text-sm">Violence Detected</h4>
+                        <p class="text-red-700 text-xs mt-1">Confidence: ${data.confidence}% at ${timestamp}</p>
+                    </div>
+                </div>
+            `;
+            
+            alertsContainer.insertBefore(alertElement, alertsContainer.firstChild);
+            alertCount++;
+            
+            // Keep only last 5 alerts
+            if (alertCount > 5) {
+                alertsContainer.removeChild(alertsContainer.lastChild);
+            }
+        }
+
+        function playNotificationSound() {
+            // Create audio context for notification sound
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch (e) {
+                console.log('Audio notification not available');
+            }
+        }
+
+        function updateAIStatus(status, className) {
+            const indicator = document.getElementById('ai-status-indicator');
+            const text = document.getElementById('ai-status-text');
+            
+            indicator.className = `w-2 h-2 rounded-full ${className}`;
+            text.textContent = status;
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             initializeCamera();
             
@@ -250,10 +435,16 @@
             
             // Setup toggle button
             document.getElementById('toggle-camera').onclick = stopCamera;
+            
+            // Setup detection toggle
+            document.getElementById('toggle-detection').onclick = function() {
+                if (isDetecting) {
+                    stopDetection();
+                } else {
+                    startDetection();
+                }
+            };
         });
     </script>
 </body>
 </html>
-
-
-
