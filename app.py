@@ -6,7 +6,7 @@ from PIL import Image
 from flask import Flask, render_template, request, jsonify
 from tensorflow.keras.models import load_model
 from werkzeug.utils import secure_filename
-from moviepy.editor import VideoFileClip
+
 
 # Flask app
 app = Flask(__name__)
