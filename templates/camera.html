@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!--<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -19,7 +19,7 @@
     </script>
 </head>
 <body class="bg-gray-50 min-h-screen">
-    <!-- Header -->
+    <!-- Header --
     <header class="bg-white shadow-sm border-b">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
@@ -43,7 +43,7 @@
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <!-- Video Feed -->
+            <!-- Video Feed --
             <div class="lg:col-span-2">
                 <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
                     <div class="px-6 py-4 border-b bg-gray-50">
@@ -94,9 +94,9 @@
                 </div>
             </div>
 
-            <!-- Detection Panel -->
+            <!-- Detection Panel --
             <div class="space-y-6">
-                <!-- Detection Status -->
+                <!-- Detection Status --
                 <div class="bg-white rounded-lg shadow-sm border p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Detection Status</h3>
                     <div class="space-y-4">
@@ -118,7 +118,7 @@
                     </div>
                 </div>
 
-                <!-- Recent Alerts -->
+                <!-- Recent Alerts --
                 <div class="bg-white rounded-lg shadow-sm border p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Recent Alerts</h3>
                     <div class="text-center py-8">
@@ -130,7 +130,7 @@
                     </div>
                 </div>
 
-                <!-- System Info -->
+                <!-- System Info --
                 <div class="bg-white rounded-lg shadow-sm border p-6">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">System Information</h3>
                     <div class="space-y-3 text-sm">
@@ -250,6 +250,459 @@
             
             // Setup toggle button
             document.getElementById('toggle-camera').onclick = stopCamera;
+        });
+    </script>
+</body>
+</html>
+-->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Camera - Crime Detection System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1e40af',
+                        secondary: '#3b82f6',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <h1 class="text-xl font-semibold text-gray-900">Live Monitoring</h1>
+                </div>
+                <a href="{{ url_for('index') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                    </svg>
+                    Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Video Feed -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-lg shadow-sm border overflow-hidden">
+                    <div class="px-6 py-4 border-b bg-gray-50">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-lg font-medium text-gray-900">Live Camera Feed</h2>
+                            <div class="flex items-center space-x-2">
+                                <div id="status-indicator" class="w-3 h-3 bg-gray-400 rounded-full"></div>
+                                <span id="status-text" class="text-sm text-gray-500">Initializing...</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div class="relative bg-black rounded-lg overflow-hidden" style="aspect-ratio: 16/9;">
+                            <video id="video" class="w-full h-full object-cover" autoplay muted playsinline></video>
+                            <canvas id="canvas" class="hidden"></canvas>
+                            <div id="loading-overlay" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                                <div class="text-center text-white">
+                                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                                    <p class="text-sm">Accessing camera...</p>
+                                </div>
+                            </div>
+                            <div id="error-overlay" class="absolute inset-0 bg-red-900 bg-opacity-90 flex items-center justify-center hidden">
+                                <div class="text-center text-white p-6">
+                                    <svg class="w-16 h-16 mx-auto mb-4 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                    </svg>
+                                    <h3 class="text-lg font-medium mb-2">Camera Access Error</h3>
+                                    <p class="text-sm text-red-200 mb-4" id="error-message">Unable to access camera. Please check permissions.</p>
+                                    <button onclick="initializeCamera()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                                        Try Again
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="violence-alert" class="absolute top-4 left-4 right-4 bg-red-600 text-white p-4 rounded-lg shadow-lg hidden animate-pulse">
+                                <div class="flex items-center">
+                                    <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                    </svg>
+                                    <div>
+                                        <h4 class="font-bold">VIOLENCE DETECTED!</h4>
+                                        <p class="text-sm">Confidence: <span id="violence-confidence">--</span>%</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between">
+                            <div class="flex items-center space-x-4">
+                                <button id="toggle-camera" class="bg-primary hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                    <svg class="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                    </svg>
+                                    Stop Camera
+                                </button>
+                            </div>
+                            <div class="text-sm text-gray-500">
+                                <span id="resolution">Resolution: --</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detection Panel -->
+            <div class="space-y-6">
+                <!-- Detection Status -->
+                <div class="bg-white rounded-lg shadow-sm border p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Detection Status</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">AI Analysis</span>
+                            <div class="flex items-center space-x-2">
+                                <div id="ai-status-indicator" class="w-2 h-2 bg-gray-400 rounded-full"></div>
+                                <span id="ai-status-text" class="text-sm font-medium text-gray-600">Inactive</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">Threat Level</span>
+                            <span id="threat-level" class="text-sm font-medium text-green-600">Low</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-600">Confidence</span>
+                            <span id="confidence-display" class="text-sm font-medium text-gray-900">--</span>
+                        </div>
+                        <div class="pt-4 border-t">
+                            <button id="toggle-detection" class="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors">
+                                Start Detection
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Alerts -->
+                <div class="bg-white rounded-lg shadow-sm border p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Recent Alerts</h3>
+                    <div id="alerts-container">
+                        <div class="text-center py-8">
+                            <svg class="w-12 h-12 mx-auto text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p class="text-sm text-gray-500">No alerts detected</p>
+                            <p class="text-xs text-gray-400 mt-1">System is monitoring for suspicious activity</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Info -->
+                <div class="bg-white rounded-lg shadow-sm border p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">System Information</h3>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Uptime</span>
+                            <span class="font-medium" id="uptime">--</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Frames Processed</span>
+                            <span class="font-medium" id="frames-processed">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Detection Model</span>
+                            <span class="font-medium">Violence Detection v2.1</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let stream = null;
+        let isRecording = false;
+        let isDetecting = false;
+        let detectionInterval = null;
+        let startTime = Date.now();
+        let frameCount = 0;
+        let alertCount = 0;
+
+        function updateStatus(status, className) {
+            const indicator = document.getElementById('status-indicator');
+            const text = document.getElementById('status-text');
+            
+            indicator.className = `w-3 h-3 rounded-full ${className}`;
+            text.textContent = status;
+        }
+
+        function updateUptime() {
+            const uptime = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(uptime / 60);
+            const seconds = uptime % 60;
+            document.getElementById('uptime').textContent = `${minutes}m ${seconds}s`;
+        }
+
+        function initializeCamera() {
+            const video = document.getElementById('video');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const errorOverlay = document.getElementById('error-overlay');
+            const toggleButton = document.getElementById('toggle-camera');
+
+            updateStatus('Connecting...', 'bg-yellow-400 animate-pulse');
+            loadingOverlay.classList.remove('hidden');
+            errorOverlay.classList.add('hidden');
+
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    width: { ideal: 1280 }, 
+                    height: { ideal: 720 } 
+                } 
+            })
+            .then(mediaStream => {
+                stream = mediaStream;
+                video.srcObject = stream;
+                
+                video.onloadedmetadata = () => {
+                    loadingOverlay.classList.add('hidden');
+                    updateStatus('Live', 'bg-green-400');
+                    toggleButton.disabled = false;
+                    
+                    // Update resolution display
+                    const track = stream.getVideoTracks()[0];
+                    const settings = track.getSettings();
+                    document.getElementById('resolution').textContent = 
+                        `Resolution: ${settings.width}x${settings.height}`;
+                };
+
+                // Simulate frame processing
+                setInterval(() => {
+                    if (stream && stream.active) {
+                        frameCount++;
+                        document.getElementById('frames-processed').textContent = frameCount.toLocaleString();
+                    }
+                }, 100);
+            })
+            .catch(err => {
+                console.error("Error accessing camera: ", err);
+                loadingOverlay.classList.add('hidden');
+                errorOverlay.classList.remove('hidden');
+                updateStatus('Error', 'bg-red-400');
+                
+                let errorMsg = 'Unable to access camera. ';
+                if (err.name === 'NotAllowedError') {
+                    errorMsg += 'Please allow camera permissions and try again.';
+                } else if (err.name === 'NotFoundError') {
+                    errorMsg += 'No camera device found.';
+                } else {
+                    errorMsg += 'Please check your camera connection.';
+                }
+                document.getElementById('error-message').textContent = errorMsg;
+            });
+        }
+
+        function stopCamera() {
+            if (isDetecting) {
+                stopDetection();
+            }
+            
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+                updateStatus('Stopped', 'bg-gray-400');
+                document.getElementById('toggle-camera').textContent = 'Start Camera';
+                document.getElementById('toggle-camera').onclick = initializeCamera;
+            }
+        }
+
+        function startDetection() {
+            if (!stream || !stream.active) {
+                alert('Please start the camera first');
+                return;
+            }
+            
+            isDetecting = true;
+            document.getElementById('toggle-detection').textContent = 'Stop Detection';
+            document.getElementById('toggle-detection').className = 'w-full bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors';
+            
+            updateAIStatus('Active', 'bg-green-400 animate-pulse');
+            
+            // Start detection every 2 seconds
+            detectionInterval = setInterval(captureAndAnalyze, 2000);
+        }
+
+        function stopDetection() {
+            isDetecting = false;
+            document.getElementById('toggle-detection').textContent = 'Start Detection';
+            document.getElementById('toggle-detection').className = 'w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors';
+            
+            updateAIStatus('Inactive', 'bg-gray-400');
+            
+            if (detectionInterval) {
+                clearInterval(detectionInterval);
+                detectionInterval = null;
+            }
+            
+            // Hide violence alert
+            document.getElementById('violence-alert').classList.add('hidden');
+        }
+
+        function captureAndAnalyze() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set canvas size to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            
+            // Draw current frame to canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Convert to base64
+            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+            
+            // Send to backend for analysis
+            fetch('/detect_frame', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ image: imageData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Detection error:', data.error);
+                    return;
+                }
+                
+                updateDetectionResults(data);
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+        function updateDetectionResults(data) {
+            // Update confidence display
+            document.getElementById('confidence-display').textContent = data.confidence + '%';
+            
+            // Update threat level
+            const threatLevel = document.getElementById('threat-level');
+            threatLevel.textContent = data.threat_level;
+            threatLevel.className = data.violence_detected ? 
+                'text-sm font-medium text-red-600' : 
+                'text-sm font-medium text-green-600';
+            
+            // Show/hide violence alert
+            const violenceAlert = document.getElementById('violence-alert');
+            if (data.violence_detected) {
+                document.getElementById('violence-confidence').textContent = data.confidence;
+                violenceAlert.classList.remove('hidden');
+                
+                // Add to alerts list
+                addAlert(data);
+                
+                // Play notification sound (optional)
+                playNotificationSound();
+            } else {
+                violenceAlert.classList.add('hidden');
+            }
+        }
+
+        function addAlert(data) {
+            const alertsContainer = document.getElementById('alerts-container');
+            const timestamp = new Date().toLocaleTimeString();
+            
+            // Clear "no alerts" message if this is the first alert
+            if (alertCount === 0) {
+                alertsContainer.innerHTML = '';
+            }
+            
+            const alertElement = document.createElement('div');
+            alertElement.className = 'bg-red-50 border border-red-200 rounded-lg p-3 mb-3';
+            alertElement.innerHTML = `
+                <div class="flex items-start">
+                    <svg class="w-5 h-5 text-red-600 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                    <div class="flex-1">
+                        <h4 class="text-red-800 font-medium text-sm">Violence Detected</h4>
+                        <p class="text-red-700 text-xs mt-1">Confidence: ${data.confidence}% at ${timestamp}</p>
+                    </div>
+                </div>
+            `;
+            
+            alertsContainer.insertBefore(alertElement, alertsContainer.firstChild);
+            alertCount++;
+            
+            // Keep only last 5 alerts
+            if (alertCount > 5) {
+                alertsContainer.removeChild(alertsContainer.lastChild);
+            }
+        }
+
+        function playNotificationSound() {
+            // Create audio context for notification sound
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch (e) {
+                console.log('Audio notification not available');
+            }
+        }
+
+        function updateAIStatus(status, className) {
+            const indicator = document.getElementById('ai-status-indicator');
+            const text = document.getElementById('ai-status-text');
+            
+            indicator.className = `w-2 h-2 rounded-full ${className}`;
+            text.textContent = status;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeCamera();
+            
+            // Update uptime every second
+            setInterval(updateUptime, 1000);
+            
+            // Setup toggle button
+            document.getElementById('toggle-camera').onclick = stopCamera;
+            
+            // Setup detection toggle
+            document.getElementById('toggle-detection').onclick = function() {
+                if (isDetecting) {
+                    stopDetection();
+                } else {
+                    startDetection();
+                }
+            };
         });
     </script>
 </body>
