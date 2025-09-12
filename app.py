@@ -1,19 +1,20 @@
 import os
-import cv2
 import numpy as np
 from flask import Flask, render_template, request
 from tensorflow.keras.models import load_model
 from werkzeug.utils import secure_filename
+from moviepy.editor import VideoFileClip
 
 # Flask app
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = "static/uploads"
 app.config['ALLOWED_EXTENSIONS'] = {'mp4'}
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB limit for uploads
 
 # Ensure the upload folder exists (important for Render)
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Load trained model
+# Load trained model once
 model = load_model("violence_detection_cnn.h5")
 IMG_SIZE = (128, 128)
 
@@ -22,30 +23,35 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 def predict_video(video_path):
-    cap = cv2.VideoCapture(video_path)
-    predictions = []
-    frame_count = 0
+    """Predict violence in video using sampled frames."""
+    try:
+        clip = VideoFileClip(video_path)
+    except Exception as e:
+        return f"Error reading video: {str(e)}"
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-        if frame_count % 10 == 0:  # Sample every 10th frame
-            try:
-                frame_resized = cv2.resize(frame, IMG_SIZE)
-                frame_norm = frame_resized / 255.0
-                frame_input = np.expand_dims(frame_norm, axis=0)
-                pred = model.predict(frame_input, verbose=0)[0][0]
-                predictions.append(pred)
-            except Exception as e:
-                print("Frame processing error:", e)
-        frame_count += 1
-    cap.release()
+    predictions = []
+    duration = int(clip.duration)
+
+    # Sample 1 frame per second (instead of all frames)
+    for t in range(0, duration, 1):
+        try:
+            frame = clip.get_frame(t)  # numpy array (H, W, 3)
+            frame_resized = np.array(
+                np.resize(frame, (*IMG_SIZE, 3)), dtype=np.float32
+            )
+            frame_norm = frame_resized / 255.0
+            frame_input = np.expand_dims(frame_norm, axis=0)
+            pred = model.predict(frame_input, verbose=0)[0][0]
+            predictions.append(pred)
+        except Exception as e:
+            print("Frame processing error:", e)
+
+    clip.close()
 
     if len(predictions) == 0:
         return "Error: No frames could be processed"
 
-    avg_pred = np.mean(predictions)
+    avg_pred = float(np.mean(predictions))
     return "Violence" if avg_pred > 0.5 else "No Violence"
 
 # Routes
@@ -68,7 +74,6 @@ def upload_video():
 
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-
         file.save(filepath)
 
         try:
