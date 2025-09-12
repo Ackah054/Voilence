@@ -1,8 +1,12 @@
 import os
+import io
+import base64
 import numpy as np
-from flask import Flask, render_template, request
+from PIL import Image
+from flask import Flask, render_template, request, jsonify
 from tensorflow.keras.models import load_model
 from werkzeug.utils import secure_filename
+from moviepy.editor import VideoFileClip
 
 # Flask app
 app = Flask(__name__)
@@ -10,7 +14,7 @@ app.config['UPLOAD_FOLDER'] = "static/uploads"
 app.config['ALLOWED_EXTENSIONS'] = {'mp4'}
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB limit for uploads
 
-# Ensure the upload folder exists (important for Render)
+# Ensure the upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Load trained model once
@@ -18,8 +22,14 @@ model = load_model("violence_detection_cnn.h5")
 IMG_SIZE = (128, 128)
 
 def allowed_file(filename):
-    """Check if file extension is allowed (.mp4 only)."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+def preprocess_image(image):
+    """Resize and normalize image for model."""
+    image = image.resize(IMG_SIZE)
+    image = np.array(image, dtype=np.float32) / 255.0
+    image = np.expand_dims(image, axis=0)
+    return image
 
 def predict_video(video_path):
     """Predict violence in video using sampled frames."""
@@ -31,15 +41,11 @@ def predict_video(video_path):
     predictions = []
     duration = int(clip.duration)
 
-    # Sample 1 frame per second (instead of all frames)
-    for t in range(0, duration, 1):
+    for t in range(0, duration, 1):  # 1 frame per second
         try:
-            frame = clip.get_frame(t)  # numpy array (H, W, 3)
-            frame_resized = np.array(
-                np.resize(frame, (*IMG_SIZE, 3)), dtype=np.float32
-            )
-            frame_norm = frame_resized / 255.0
-            frame_input = np.expand_dims(frame_norm, axis=0)
+            frame = clip.get_frame(t)
+            frame_img = Image.fromarray(frame)
+            frame_input = preprocess_image(frame_img)
             pred = model.predict(frame_input, verbose=0)[0][0]
             predictions.append(pred)
         except Exception as e:
@@ -47,13 +53,12 @@ def predict_video(video_path):
 
     clip.close()
 
-    if len(predictions) == 0:
+    if not predictions:
         return "Error: No frames could be processed"
 
     avg_pred = float(np.mean(predictions))
     return "Violence" if avg_pred > 0.5 else "No Violence"
 
-# Routes
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -87,6 +92,32 @@ def upload_video():
 @app.route('/camera')
 def camera():
     return render_template('camera.html')
+
+@app.route('/detect_frame', methods=['POST'])
+def detect_frame():
+    """Handle live camera frames from frontend."""
+    try:
+        data = request.get_json()
+        image_data = data['image'].split(",")[1]  # remove data:image/...;base64,
+        image_bytes = base64.b64decode(image_data)
+        image = Image.open(io.BytesIO(image_bytes))
+
+        # preprocess + predict
+        frame_input = preprocess_image(image)
+        pred = model.predict(frame_input, verbose=0)[0][0]
+
+        confidence = round(float(pred) * 100, 2)
+        violence_detected = pred > 0.5
+        threat_level = "High" if violence_detected else "Low"
+
+        return jsonify({
+            "violence_detected": violence_detected,
+            "confidence": confidence,
+            "threat_level": threat_level
+        })
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
