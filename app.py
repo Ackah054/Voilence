@@ -4,6 +4,7 @@ import numpy as np
 from flask import Flask, render_template, request, Response
 from tensorflow.keras.models import load_model
 from werkzeug.utils import secure_filename
+import traceback
 
 # Flask app
 app = Flask(__name__)
@@ -27,11 +28,17 @@ def allowed_file(filename):
 def predict_video(video_path):
     """Predict violence in a saved video file using OpenCV."""
     cap = cv2.VideoCapture(video_path)
-    predictions = []
+    if not cap.isOpened():
+        return "Error: Could not open video file"
 
+    predictions = []
     fps = int(cap.get(cv2.CAP_PROP_FPS)) or 1
-    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    duration = frame_count // fps
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 0
+    duration = frame_count // fps if fps > 0 else 0
+
+    if duration == 0:
+        cap.release()
+        return "Error: Video contains no readable frames"
 
     # Sample 1 frame per second
     for t in range(duration):
@@ -97,14 +104,14 @@ def index():
 def upload_video():
     if request.method == 'POST':
         if 'video' not in request.files:
-            return "No file uploaded", 400
+            return render_template("result.html", prediction="Error: No file uploaded", video_path=None)
 
         file = request.files['video']
         if file.filename == '':
-            return "No selected file", 400
+            return render_template("result.html", prediction="Error: No file selected", video_path=None)
 
         if not allowed_file(file.filename):
-            return "Only .mp4 files are allowed", 400
+            return render_template("result.html", prediction="Error: Only .mp4 files are allowed", video_path=None)
 
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -113,9 +120,9 @@ def upload_video():
         try:
             result = predict_video(filepath)
         except Exception as e:
-            return f"Error during analysis: {str(e)}", 500
+            traceback.print_exc()  # print error in Render logs
+            result = f"Error during analysis: {str(e)}"
 
-        # Pass only filename to template (not full path)
         return render_template('result.html', prediction=result, video_path=filename)
 
     return render_template('upload.html')
