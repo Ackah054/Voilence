@@ -67,7 +67,7 @@
                                 controls 
                                 preload="metadata"
                             >
-                                <source src="{{ url_for('static', filename='uploads/' + video_path.split('/')[-1]) }}" type="video/mp4">
+                                <source src="{{ url_for('static', filename='uploads/' + video_path) }}" type="video/mp4">
                                 <p class="text-white p-4">Your browser does not support the video tag.</p>
                             </video>
                         </div>

@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = "static/uploads"
 app.config['ALLOWED_EXTENSIONS'] = {'mp4'}
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10 MB upload limit
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # Increased to 100 MB
 
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -115,7 +115,8 @@ def upload_video():
         except Exception as e:
             return f"Error during analysis: {str(e)}", 500
 
-        return render_template('result.html', prediction=result, video_path=filepath)
+        # Pass only filename to template (not full path)
+        return render_template('result.html', prediction=result, video_path=filename)
 
     return render_template('upload.html')
 
