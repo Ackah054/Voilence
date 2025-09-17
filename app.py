@@ -8,6 +8,8 @@ import gc
 import logging
 from threading import Lock, Thread
 import time
+import base64
+
 
 # ---------- Config ----------
 MAX_UPLOAD_MB = int(os.environ.get("MAX_UPLOAD_MB", 50))
@@ -290,6 +292,42 @@ def health_check():
         "model_loaded": model is not None,
         "timestamp": time.time()
     })
+           #CAMERA SECTION CODES
+@app.route('/detect_frame', methods=['POST'])
+def detect_frame():
+    try:
+        data = request.get_json()
+        if 'image' not in data:
+            return jsonify({"error": "No image provided"}), 400
+
+        # Decode base64 image
+        image_data = data['image'].split(',')[1]  # remove "data:image/jpeg;base64,"
+        image_bytes = base64.b64decode(image_data)
+        np_arr = np.frombuffer(image_bytes, np.uint8)
+        frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+        # Preprocess frame
+        frame_resized = cv2.resize(frame, IMG_SIZE)
+        frame_norm = frame_resized.astype(np.float32) / 255.0
+        frame_input = np.expand_dims(frame_norm, axis=0)
+
+        # Predict
+        with model_lock:
+            pred = model.predict(frame_input, verbose=0)[0][0]
+
+        violence_detected = pred > VIOLENCE_THRESHOLD
+        confidence_pct = round(float(pred) * 100, 2)
+
+        result = {
+            "violence_detected": violence_detected,
+            "confidence": confidence_pct,
+            "threat_level": "High" if violence_detected else "Low"
+        }
+        return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Error in /detect_frame: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == '__main__':
