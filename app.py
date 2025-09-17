@@ -26,8 +26,8 @@ logger = logging.getLogger(__name__)
 # Model and inference settings (tune via env if needed)
 model = None
 model_lock = Lock()
-IMG_SIZE = (128, 128)                        # smaller image reduces inference cost
-MAX_SAMPLES = int(os.environ.get("MAX_SAMPLES", 5))     # total frames sampled per video
+IMG_SIZE = (64, 64)                        # smaller image reduces inference cost
+MAX_SAMPLES = int(os.environ.get("MAX_SAMPLES", 6))     # total frames sampled per video
 MAX_WORKER_TIMEOUT_S = int(os.environ.get("WORKER_TIMEOUT", 120))
 EARLY_STOP_CONFIDENCE = float(os.environ.get("EARLY_STOP_CONF", 0.85))
 VIOLENCE_THRESHOLD = float(os.environ.get("VIOLENCE_THRESHOLD", 0.5))
